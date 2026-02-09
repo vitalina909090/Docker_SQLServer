@@ -1,0 +1,42 @@
+
+services:
+
+  sqlserver:
+    build: ./sqlserver
+    container_name: sqlserver_con
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=${SA_PASSWORD}
+    ports:
+      - "1433:1433"
+    volumes:
+      - sql_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "sqlcmd -S localhost -U sa -P $${SA_PASSWORD} -Q 'SELECT 1'"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 10s
+
+  init-db:
+    build: ./init-db
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      - SA_PASSWORD=${SA_PASSWORD}
+
+  app:
+    build: ./app
+    depends_on:
+      - init-db
+    ports:
+      - "3000:3000"
+    environment:
+      - DB_HOST=sqlserver
+      - DB_USER=sa
+      - DB_PASSWORD=${SA_PASSWORD}
+      - DB_NAME=test_db
+
+volumes:
+  sql_data:
